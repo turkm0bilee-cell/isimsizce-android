@@ -9,19 +9,83 @@ void main() {
   runApp(const IsimsizceApp());
 }
 
+int countEmojis(String value) {
+  final emojiPattern = RegExp(
+    r'[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2300}-\u{23FF}]|[0-9#*]\u{FE0F}?\u{20E3}',
+    unicode: true,
+  );
+  return value.characters.where((part) => emojiPattern.hasMatch(part)).length;
+}
+
+class EmojiPickerButton extends StatelessWidget {
+  const EmojiPickerButton({super.key, required this.controller,
+    required this.maxLength, this.maxEmojis, this.enabled = true});
+  final TextEditingController controller;
+  final int maxLength;
+  final int? maxEmojis;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) => TextButton.icon(
+    onPressed: !enabled ? null : () async {
+      final emoji = await showModalBottomSheet<String>(
+        context: context, backgroundColor: AppColors.surface,
+        builder: (pickerContext) => SafeArea(
+          child: Padding(padding: const EdgeInsets.all(16),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              const Text('Emoji ekle', style: TextStyle(fontSize: 20,
+                fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+              Flexible(child: SingleChildScrollView(child: Wrap(
+                spacing: 4, runSpacing: 4,
+                children: ['😀','😃','😄','😁','😅','😂','🤣','😊','🙂','🙃',
+                  '😉','😍','🥰','😘','😎','🤔','🤫','🤗','🥺','😢','😭',
+                  '😡','🤯','😴','🙄','😶','🕵️','❤️','💜','💙','💗',
+                  '🔥','✨','⭐','☀️','🌙','🌧️','🌈','🎉','🎈','💫',
+                  '👍','👎','👏','🙌','🤝','👋','🙏','💪','👌','✍️',
+                  '💬','🚀','🎵','☕','🌹','🍀','✅','❓'].map((value) =>
+                  SizedBox(width: 46, height: 46, child: TextButton(
+                    onPressed: () => Navigator.pop(pickerContext, value),
+                    child: Text(value, style: const TextStyle(fontSize: 24)),
+                  ))).toList(),
+              ))),
+            ]),
+          ),
+        ),
+      );
+      if (emoji == null || !context.mounted) return;
+      final selection = controller.selection;
+      final start = selection.isValid ? selection.start : controller.text.length;
+      final end = selection.isValid ? selection.end : controller.text.length;
+      final next = controller.text.replaceRange(start, end, emoji);
+      if (next.characters.length > maxLength ||
+          (maxEmojis != null && countEmojis(next) > maxEmojis!)) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(
+          maxEmojis != null && countEmojis(next) > maxEmojis!
+            ? 'Başlıkta en fazla $maxEmojis emoji kullanabilirsin.'
+            : 'En fazla $maxLength karakter kullanabilirsin.')));
+        return;
+      }
+      controller.value = TextEditingValue(text: next,
+        selection: TextSelection.collapsed(offset: start + emoji.length));
+    },
+    icon: const Text('😊'), label: const Text('Emoji ekle'),
+  );
+}
+
 // ============================================================
 // RENKLER
 // ============================================================
 
 class AppColors {
-  static const background = Color(0xFF101524);
-  static const surface = Color(0xFF1C243A);
-  static const surfaceLight = Color(0xFF242D46);
-  static const border = Color(0xFF303A55);
+  static const background = Color(0xFF141625);
+  static const surface = Color(0xFF22263A);
+  static const surfaceLight = Color(0xFF292D43);
+  static const border = Color(0xFF36384F);
 
   static const purple = Color(0xFFB99AFF);
   static const purpleStrong = Color(0xFF9A6BFF);
-  static const pink = Color(0xFFFF4D8D);
+  static const pink = Color(0xFFDF40B0);
 
   static const text = Color(0xFFF5F5FA);
   static const textSoft = Color(0xFFB9BDD0);
@@ -136,6 +200,28 @@ class AnonymousIdentity {
 // ============================================================
 
 class ApiService {
+  static Future<Map<String, dynamic>> sendAction(
+    String endpoint, Map<String, dynamic> payload,
+  ) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/$endpoint'),
+      headers: await _headers(),
+      body: jsonEncode(payload),
+    ).timeout(const Duration(seconds: 20));
+    final dynamic decoded;
+    try {
+      decoded = jsonDecode(utf8.decode(response.bodyBytes));
+    } catch (_) {
+      throw Exception('Sunucudan geçersiz cevap geldi.');
+    }
+    if (decoded is! Map || response.statusCode < 200 ||
+        response.statusCode >= 300 || decoded['ok'] != true) {
+      throw Exception(decoded is Map
+          ? decoded['error']?.toString() ?? 'İşlem tamamlanamadı.'
+          : 'İşlem tamamlanamadı.');
+    }
+    return Map<String, dynamic>.from(decoded);
+  }
   static const String baseUrl =
       'https://isimsizce.nurullahyrmz.com/api';
 
@@ -248,6 +334,10 @@ class ApiService {
       ) async {
     final cleanTitle = title.trim();
 
+    if (countEmojis(cleanTitle) > 3) {
+      throw Exception('Başlıkta en fazla 3 emoji kullanabilirsin.');
+    }
+
     if (cleanTitle.isEmpty) {
       throw Exception(
         'Başlık boş bırakılamaz.',
@@ -335,6 +425,10 @@ class ApiService {
   }) async {
     final cleanNickname = nickname.trim();
     final cleanContent = content.trim();
+
+    if (cleanContent.runes.length > 1000) {
+      throw Exception('Entry en fazla 1.000 karakter olabilir.');
+    }
 
     if (cleanNickname.isEmpty) {
       throw Exception(
@@ -434,7 +528,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  int selectedIndex = 0;
+  int selectedIndex = 1;
 
   bool loading = true;
   String? error;
@@ -557,7 +651,7 @@ class _HomePageState extends State<HomePage> {
   String get sectionTitle {
     switch (selectedIndex) {
       case 1:
-        return '🆕 Yeni';
+        return '📝 Yeni Başlıklar';
 
       case 2:
         return '💗 Popüler';
@@ -723,6 +817,8 @@ class _HomePageState extends State<HomePage> {
                       InputDecoration(
                         labelText:
                         'Başlık',
+                        suffixIcon: EmojiPickerButton(controller: titleController,
+                          maxLength: 150, maxEmojis: 3, enabled: !submitting),
                         hintText:
                         'Ne hakkında konuşmak istiyorsun?',
                         filled: true,
@@ -1018,6 +1114,49 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _hero() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 24, 16, 28),
+      child: Column(children: [
+        OutlinedButton.icon(
+          onPressed: () => showDialog<void>(
+            context: context,
+            builder: (dialogContext) => AlertDialog(
+              title: const Text('İsimsizce Hakkında'),
+              content: const Text('İsmini değil, fikrini bırak.\n\n'
+                'Başlık aç, fikirlerini paylaş ve diğer entryleri keşfet. '
+                'Gerçek adını kullanmak zorunda değilsin. '
+                'Kişisel bilgileri paylaşma; hakaret, tehdit ve spam gönderme.'),
+              actions: [TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Kapat'))],
+            ),
+          ),
+          icon: const Text('🕵️'), label: const Text('İsimsizce Hakkında'),
+        ),
+        const SizedBox(height: 18),
+        const Text('İsmini değil, fikrini bırak.',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 23, fontWeight: FontWeight.w900)),
+        const SizedBox(height: 18),
+        Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(colors: [AppColors.purpleStrong, AppColors.pink]),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: TextButton(
+            onPressed: showCreateTopic,
+            style: TextButton.styleFrom(foregroundColor: Colors.white,
+              padding: const EdgeInsets.all(16)),
+            child: const Text('✍️ Başlık Aç',
+              style: TextStyle(fontWeight: FontWeight.w800)),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  Widget _previousHero() {
     return Padding(
       padding:
       const EdgeInsets.fromLTRB(
@@ -1692,6 +1831,7 @@ class _TopicPageState
                       !submitting,
                       minLines: 4,
                       maxLines: 8,
+                      maxLength: 1000,
                       keyboardType:
                       TextInputType
                           .multiline,
@@ -1699,6 +1839,8 @@ class _TopicPageState
                       InputDecoration(
                         labelText:
                         'Entry',
+                        suffixIcon: EmojiPickerButton(controller: contentController,
+                          maxLength: 1000, enabled: !submitting),
                         hintText:
                         'Fikrini yaz...',
                         alignLabelWithHint:
@@ -2026,6 +2168,66 @@ class _TopicPageState
     );
   }
 
+  final Set<String> _entryBusy = {};
+
+  void _actionMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _likeEntry(dynamic entry) async {
+    final id = int.tryParse(entry['id'].toString());
+    if (id == null || _entryBusy.contains('$id')) return;
+    setState(() => _entryBusy.add('$id'));
+    try {
+      final result = await ApiService.sendAction('likes.php', {'entry_id': id});
+      if (result['liked'] == true) {
+        await loadTopic();
+      } else {
+        _actionMessage('Bu entry için beğeni eklenemedi veya daha önce beğendin.');
+      }
+    } catch (error) {
+      _actionMessage(error.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => _entryBusy.remove('$id'));
+    }
+  }
+
+  Future<void> _reportEntry(dynamic entry) async {
+    final id = int.tryParse(entry['id'].toString());
+    if (id == null || _entryBusy.contains('$id')) return;
+    final controller = TextEditingController();
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Entry şikâyeti'),
+        content: TextField(
+          controller: controller, maxLength: 500, maxLines: 4,
+          decoration: const InputDecoration(labelText: 'Şikâyet nedeni'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Vazgeç')),
+          FilledButton(onPressed: () {
+            if (controller.text.trim().isNotEmpty) {
+              Navigator.pop(dialogContext, controller.text.trim());
+            }
+          }, child: const Text('Gönder')),
+        ],
+      ),
+    );
+    if (!mounted || reason == null) return;
+    setState(() => _entryBusy.add('$id'));
+    try {
+      await ApiService.sendAction('reports.php', {'entry_id': id, 'reason': reason});
+      _actionMessage('Şikâyetin iletildi.');
+    } catch (error) {
+      _actionMessage(error.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => _entryBusy.remove('$id'));
+    }
+  }
+
   Widget _entryCard(dynamic entry) {
     final nickname =
         entry['nickname']
@@ -2146,9 +2348,11 @@ class _TopicPageState
 
           Row(
             children: [
-              _entryAction(
-                '💗',
-                likes,
+              TextButton.icon(
+                onPressed: _entryBusy.contains(entry['id'].toString())
+                    ? null : () => _likeEntry(entry),
+                icon: const Icon(Icons.favorite_outline, size: 18),
+                label: Text(likes),
               ),
 
               const SizedBox(
@@ -2162,11 +2366,11 @@ class _TopicPageState
 
               const Spacer(),
 
-              const Icon(
-                Icons.flag_outlined,
-                size: 19,
-                color:
-                AppColors.textMuted,
+              TextButton.icon(
+                onPressed: _entryBusy.contains(entry['id'].toString())
+                    ? null : () => _reportEntry(entry),
+                icon: const Icon(Icons.flag_outlined, size: 18),
+                label: const Text('Şikâyet Et'),
               ),
             ],
           ),
