@@ -26,12 +26,34 @@ jobs:
           cp /tmp/isimsizce-template/android/gradlew.bat android/gradlew.bat
           cp /tmp/isimsizce-template/android/gradle/wrapper/gradle-wrapper.jar android/gradle/wrapper/gradle-wrapper.jar
           chmod +x android/gradlew
+      - name: Gercek site simgesinden Android ikonlarini hazirla
+        run: |
+          python3 -m pip install --quiet cairosvg Pillow
+          python3 - <<'PY'
+          from pathlib import Path
+          import cairosvg
+          from PIL import Image
+          import io
+          svg = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path fill="#f7f5ff" d="M23 47 34 15Q38 8 45 13L50 17 55 13Q63 8 67 16L78 47Z"/><path fill="#a575fa" d="M28 33Q50 41 72 33L77 46Q50 55 24 46Z"/><ellipse cx="50" cy="49" rx="43" ry="9" fill="#f7f5ff"/><g fill="none" stroke="#f7f5ff" stroke-width="7"><circle cx="32" cy="76" r="14"/><circle cx="68" cy="76" r="14"/><path d="M46 74h8"/></g></svg>'''
+          Path('assets').mkdir(exist_ok=True)
+          Path('assets/site_logo.svg').write_text(svg)
+          logo = Image.open(io.BytesIO(cairosvg.svg2png(bytestring=svg.encode(), output_width=640, output_height=640))).convert('RGBA')
+          foreground = Image.new('RGBA',(1024,1024),(0,0,0,0))
+          foreground.alpha_composite(logo,(192,192))
+          foreground.save('assets/app_icon_foreground.png')
+          icon = Image.new('RGBA',(1024,1024),'#141625')
+          icon.alpha_composite(foreground)
+          icon.save('assets/app_icon.png')
+          PY
       - run: flutter pub get
+      - run: dart run flutter_launcher_icons
       - run: flutter analyze --no-fatal-infos --no-fatal-warnings
       - run: flutter build apk --release
-      - run: cp build/app/outputs/flutter-apk/app-release.apk Isimsizce-v1.1.0-test.apk
+      - run: cp build/app/outputs/flutter-apk/app-release.apk Isimsizce-v1.2.0-test.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: Isimsizce-v1.1.0-test
-          path: Isimsizce-v1.1.0-test.apk
+          name: Isimsizce-v1.2.0-test
+          path: |
+            Isimsizce-v1.2.0-test.apk
+            assets/app_icon.png
           if-no-files-found: error
