@@ -133,6 +133,14 @@ class _SitePageState extends State<SitePage> {
 }
 
 const mobileAdjustments = r'''(() => {
+  document.querySelectorAll('a[href]').forEach(link => {
+    try {
+      const target = new URL(link.getAttribute('href'), location.href);
+      if (target.origin === location.origin && target.pathname === '/android.php') {
+        link.remove();
+      }
+    } catch (_) { /* Ignore malformed links. */ }
+  });
   const dialog = document.getElementById('isimsizce-about-dialog');
   if (dialog) {
     dialog.querySelector('.isimsizce-about-test')?.remove();
