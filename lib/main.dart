@@ -341,9 +341,15 @@ class ApiService {
   // ----------------------------------------------------------
 
   static Future<Map<String, dynamic>> createTopic(
-      String title,
-      ) async {
+      String title, {
+        bool useNickname = false,
+        String nickname = "",
+      }) async {
     final cleanTitle = title.trim();
+    final cleanNickname = nickname.trim();
+    if (useNickname && (cleanNickname.isEmpty || cleanNickname.length > 30)) {
+      throw Exception('Takma ad 1–30 karakter olmalı.');
+    }
 
     if (countEmojis(cleanTitle) > 3) {
       throw Exception('Başlıkta en fazla 3 emoji kullanabilirsin.');
@@ -369,6 +375,8 @@ class ApiService {
       headers: await _headers(),
       body: jsonEncode({
         'title': cleanTitle,
+        'use_nickname': useNickname,
+        'nickname': useNickname ? cleanNickname : 'Anonim',
         'anonymous_token': token,
       }),
     );
@@ -683,6 +691,8 @@ class _HomePageState extends State<HomePage> {
     final titleController =
     TextEditingController();
 
+    final topicNicknameController = TextEditingController();
+    bool useNickname = false;
     bool submitting = false;
     String? formError;
 
@@ -732,6 +742,8 @@ class _HomePageState extends State<HomePage> {
               try {
                 await ApiService.createTopic(
                   title,
+                  useNickname: useNickname,
+                  nickname: topicNicknameController.text,
                 );
 
                 if (!mounted) return;
@@ -855,6 +867,29 @@ class _HomePageState extends State<HomePage> {
                             width: 1.5,
                           ),
                         ),
+                      ),
+                    ),
+
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Takma adla paylaş'),
+                      subtitle: Text(useNickname
+                          ? 'Başlık takma adınla paylaşılacak.'
+                          : 'Başlık anonim paylaşılacak.'),
+                      value: useNickname,
+                      onChanged: submitting ? null : (value) {
+                        setSheetState(() { useNickname = value; formError = null; });
+                      },
+                    ),
+                    if (useNickname) TextField(
+                      controller: topicNicknameController,
+                      enabled: !submitting,
+                      maxLength: 30,
+                      textCapitalization: TextCapitalization.none,
+                      decoration: const InputDecoration(
+                        labelText: 'Takma ad',
+                        hintText: 'Nasıl görünmek istersin?',
+                        border: OutlineInputBorder(),
                       ),
                     ),
 
