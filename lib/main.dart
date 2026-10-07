@@ -9,6 +9,17 @@ void main() {
   runApp(const IsimsizceApp());
 }
 
+String displayDate(String value, {bool includeTime = false}) {
+  final date = DateTime.tryParse(value);
+  if (date == null) return value;
+  const months = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
+    'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+  final label = '${date.day} ${months[date.month - 1]} ${date.year}';
+  return includeTime
+    ? '$label, ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}'
+    : label;
+}
+
 int countEmojis(String value) {
   final emojiPattern = RegExp(
     r'[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2300}-\u{23FF}]|[0-9#*]\u{FE0F}?\u{20E3}',
@@ -84,8 +95,8 @@ class AppColors {
   static const border = Color(0xFF36384F);
 
   static const purple = Color(0xFFB99AFF);
-  static const purpleStrong = Color(0xFF9A6BFF);
-  static const pink = Color(0xFFDF40B0);
+  static const purpleStrong = Color(0xFF8B5CF6);
+  static const pink = Color(0xFFEC4899);
 
   static const text = Color(0xFFF5F5FA);
   static const textSoft = Color(0xFFB9BDD0);
@@ -1015,102 +1026,70 @@ class _HomePageState extends State<HomePage> {
         ),
       ),
 
-      floatingActionButton:
-      FloatingActionButton.extended(
-        onPressed: showCreateTopic,
-        backgroundColor:
-        AppColors.purpleStrong,
-        foregroundColor: Colors.white,
-        icon: const Text(
-          '✍️',
-          style: TextStyle(
-            fontSize: 18,
-          ),
-        ),
-        label: const Text(
-          'Başlık Aç',
-          style: TextStyle(
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      ),
-
-      bottomNavigationBar:
-      _bottomNavigation(),
     );
   }
 
   Widget _header() {
+    final menu = <({String label, VoidCallback action, bool active})>[
+      (label: '🏠 Ana Sayfa', action: () => setState(() => selectedIndex = 1), active: selectedIndex == 1),
+      (label: '🔥 Gündem', action: () => setState(() => selectedIndex = 0), active: selectedIndex == 0),
+      (label: '❤️ Popüler', action: () => setState(() => selectedIndex = 2), active: selectedIndex == 2),
+      (label: '🔍 Ara', action: () => setState(() => selectedIndex = 3), active: selectedIndex == 3),
+      (label: '✍️ Başlık Aç', action: showCreateTopic, active: false),
+      (label: '📖 Kurallar', action: _showRules, active: false),
+    ];
     return Container(
-      margin:
-      const EdgeInsets.fromLTRB(
-        16,
-        14,
-        16,
-        0,
-      ),
-      padding:
-      const EdgeInsets.symmetric(
-        horizontal: 17,
-        vertical: 15,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius:
-        BorderRadius.circular(18),
-        border: Border.all(
-          color: AppColors.border,
-        ),
-      ),
-      child: Row(
-        children: [
-          const Text(
-            '🕵️',
-            style: TextStyle(
-              fontSize: 23,
-            ),
-          ),
-
-          const SizedBox(width: 8),
-
-          RichText(
-            text: const TextSpan(
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight:
-                FontWeight.w900,
-              ),
-              children: [
-                TextSpan(
-                  text: 'İsimsiz',
-                  style: TextStyle(
-                    color: Colors.white,
-                  ),
-                ),
-                TextSpan(
-                  text: 'ce',
-                  style: TextStyle(
-                    color:
-                    AppColors.purple,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          const Spacer(),
-
-          IconButton(
-            onPressed: loadTopics,
-            tooltip: 'Yenile',
-            icon: const Icon(
-              Icons.refresh_rounded,
-              color: AppColors.textSoft,
-            ),
-          ),
-        ],
-      ),
+      margin: const EdgeInsets.fromLTRB(12, 14, 12, 0),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: AppColors.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.border)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          const Text('🕵️', style: TextStyle(fontSize: 34)),
+          const SizedBox(width: 10),
+          const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+            children: [Text('İsimsizce', style: TextStyle(fontSize: 24,
+              fontWeight: FontWeight.w900, color: Colors.white)),
+              Text('Anonim Sözlük', style: TextStyle(fontSize: 12,
+                color: AppColors.textSoft))])),
+          IconButton(onPressed: loadTopics, tooltip: 'Yenile',
+            icon: const Icon(Icons.refresh_rounded)),
+        ]),
+        const SizedBox(height: 16),
+        LayoutBuilder(builder: (context, constraints) => Wrap(
+          spacing: 6, runSpacing: 6,
+          children: menu.map((item) => SizedBox(
+            width: (constraints.maxWidth - 12) / 3,
+            child: OutlinedButton(onPressed: item.action,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.white,
+                backgroundColor: item.active
+                  ? AppColors.purpleStrong.withValues(alpha: .22)
+                  : Colors.white.withValues(alpha: .035),
+                side: BorderSide(color: item.active ? AppColors.purpleStrong : AppColors.border),
+                padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 13),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+              child: Text(item.label, textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700))),
+          )).toList(),
+        )),
+      ]),
     );
+  }
+
+  void _showRules() {
+    showDialog<void>(context: context, builder: (dialogContext) => AlertDialog(
+      title: const Text('Kurallar ve Yardım'),
+      content: const SingleChildScrollView(child: Text(
+        'İsmini değil, fikrini bırak.\n\n'
+        'Gerçek adını kullanmak zorunda değilsin. Kişisel bilgileri paylaşma. '
+        'Hakaret, tehdit ve spam gönderme. Uygunsuz entryleri Şikâyet Et ile bildirebilirsin.\n\n'
+        'Başlık: en fazla 150 karakter ve 3 emoji.\n'
+        'Takma ad: en fazla 30 karakter.\nEntry: en fazla 1.000 karakter.')),
+      actions: [TextButton(onPressed: () => Navigator.pop(dialogContext),
+        child: const Text('Kapat'))],
+    ));
   }
 
   Widget _hero() {
@@ -1156,61 +1135,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _previousHero() {
-    return Padding(
-      padding:
-      const EdgeInsets.fromLTRB(
-        20,
-        42,
-        20,
-        42,
-      ),
-      child: Column(
-        children: [
-          const Text(
-            'İsimsizce',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: AppColors.purple,
-              fontSize: 45,
-              height: 1,
-              letterSpacing: -2,
-              fontWeight:
-              FontWeight.w900,
-            ),
-          ),
 
-          const SizedBox(height: 14),
-
-          const Text(
-            'İsmini değil, fikrini bırak.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight:
-              FontWeight.w800,
-            ),
-          ),
-
-          const SizedBox(height: 10),
-
-          Container(
-            width: 52,
-            height: 3,
-            decoration: BoxDecoration(
-              color:
-              AppColors.purpleStrong,
-              borderRadius:
-              BorderRadius.circular(
-                20,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _sectionHeader() {
     return Padding(
@@ -1311,107 +1236,46 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _topicCard(dynamic topic) {
-    final title =
-        topic['title']?.toString() ??
-            'Başlıksız';
-
-    final entryCount =
-        topic['entry_count']
-            ?.toString() ??
-            '0';
-
-    final likeCount =
-        topic['like_count']
-            ?.toString() ??
-            '0';
-
-    final date =
-        topic['created_at']
-            ?.toString() ??
-            '';
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius:
-        BorderRadius.circular(18),
-        onTap: () async {
-          final id = int.tryParse(
-            topic['id'].toString(),
-          );
-
-          if (id == null) return;
-
-          await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) =>
-                  TopicPage(
-                    topicId: id,
-                  ),
-            ),
-          );
-
-          if (mounted) {
-            loadTopics();
-          }
-        },
-        child: Ink(
-          padding:
-          const EdgeInsets.all(19),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius:
-            BorderRadius.circular(
-              18,
-            ),
-            border: Border.all(
-              color: AppColors.border,
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment:
-            CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  height: 1.25,
-                  fontWeight:
-                  FontWeight.w800,
-                ),
-              ),
-
-              const SizedBox(
-                height: 13,
-              ),
-
-              Wrap(
-                spacing: 12,
-                runSpacing: 7,
-                children: [
-                  _meta(
-                    '💬',
-                    '$entryCount entry',
-                  ),
-                  _meta(
-                    '💗',
-                    likeCount,
-                  ),
-                  if (date.isNotEmpty)
-                    _meta(
-                      '•',
-                      date,
-                    ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+    final title = topic['title']?.toString() ?? 'Başlıksız';
+    final count = topic['entry_count']?.toString() ?? '0';
+    final likes = topic['like_count']?.toString() ?? '0';
+    final date = displayDate(topic['created_at']?.toString() ?? '');
+    final number = visibleTopics.indexOf(topic) + 1;
+    return Stack(clipBehavior: Clip.none, children: [
+      Material(color: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18),
+          side: const BorderSide(color: AppColors.border)),
+        child: InkWell(borderRadius: BorderRadius.circular(18),
+          onTap: () async {
+            final id = int.tryParse(topic['id'].toString());
+            if (id == null) return;
+            await Navigator.push(context, MaterialPageRoute(
+              builder: (_) => TopicPage(topicId: id)));
+            if (mounted) await loadTopics();
+          },
+          child: Padding(padding: const EdgeInsets.all(19),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(title, style: const TextStyle(fontSize: 18, height: 1.3,
+                fontWeight: FontWeight.w800, color: Colors.white)),
+              const SizedBox(height: 12),
+              if (count == '0') ...[
+                const Text('Henüz entry yok. İlk entry’yi sen yaz.',
+                  style: TextStyle(color: AppColors.textSoft, height: 1.6)),
+                const SizedBox(height: 12),
+              ],
+              Wrap(spacing: 16, runSpacing: 8, children: [
+                _meta('💬', '$count entry'), _meta('❤️', likes),
+                if (date.isNotEmpty) _meta('📅', 'Açılış: $date'),
+              ]),
+            ])),
+        )),
+      Positioned(left: -6, top: 18, child: Container(
+        width: 27, height: 27, alignment: Alignment.center,
+        decoration: const BoxDecoration(shape: BoxShape.circle,
+          gradient: LinearGradient(colors: [AppColors.purpleStrong, AppColors.pink])),
+        child: Text('$number', style: const TextStyle(fontWeight: FontWeight.w800)),
+      )),
+    ]);
   }
 
   Widget _meta(
@@ -2107,66 +1971,22 @@ class _TopicPageState
     );
   }
 
-  Widget _topicHeader() {
-    return Container(
-      padding:
-      const EdgeInsets.all(21),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius:
-        BorderRadius.circular(20),
-        border: Border.all(
-          color: AppColors.border,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment:
-        CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'BAŞLIK',
-            style: TextStyle(
-              color: AppColors.purple,
-              fontSize: 11,
-              letterSpacing: 1.5,
-              fontWeight:
-              FontWeight.w800,
-            ),
-          ),
-
-          const SizedBox(height: 9),
-
-          Text(
-            topic?['title']
-                ?.toString() ??
-                'Başlık',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 24,
-              height: 1.2,
-              fontWeight:
-              FontWeight.w900,
-            ),
-          ),
-
-          const SizedBox(
-            height: 13,
-          ),
-
-          Text(
-            topic?['created_at']
-                ?.toString() ??
-                '',
-            style: const TextStyle(
-              color:
-              AppColors.textMuted,
-              fontSize: 12,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _topicHeader() => Container(
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(color: AppColors.surface,
+      borderRadius: BorderRadius.circular(18),
+      border: Border.all(color: AppColors.border)),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(topic?['title']?.toString() ?? 'Başlık',
+        style: const TextStyle(fontSize: 24, height: 1.3, fontWeight: FontWeight.w900)),
+      const SizedBox(height: 14),
+      Wrap(spacing: 12, runSpacing: 8, children: [
+        Text('💬 ${entries.length} entry', style: const TextStyle(color: AppColors.textSoft)),
+        Text('📅 ${displayDate(topic?['created_at']?.toString() ?? '', includeTime: true)}',
+          style: const TextStyle(color: AppColors.textSoft, fontSize: 12)),
+      ]),
+    ]),
+  );
 
   final Set<String> _entryBusy = {};
 
@@ -2229,153 +2049,47 @@ class _TopicPageState
   }
 
   Widget _entryCard(dynamic entry) {
-    final nickname =
-        entry['nickname']
-            ?.toString() ??
-            'anonim';
-
-    final content =
-        entry['content']
-            ?.toString() ??
-            '';
-
-    final likes =
-        entry['like_count']
-            ?.toString() ??
-            '0';
-
-    final replies =
-        entry['reply_count']
-            ?.toString() ??
-            '0';
-
-    final date =
-        entry['created_at']
-            ?.toString() ??
-            '';
-
+    final id = entry['id'].toString();
+    final busy = _entryBusy.contains(id);
+    final number = entries.indexOf(entry) + 1;
     return Container(
-      padding:
-      const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius:
-        BorderRadius.circular(18),
-        border: Border.all(
-          color: AppColors.border,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment:
-        CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 35,
-                height: 35,
-                alignment:
-                Alignment.center,
-                decoration:
-                BoxDecoration(
-                  color: AppColors
-                      .purpleStrong
-                      .withValues(
-                    alpha: 0.18,
-                  ),
-                  shape:
-                  BoxShape.circle,
-                ),
-                child:
-                const Text('👤'),
-              ),
-
-              const SizedBox(
-                width: 10,
-              ),
-
-              Expanded(
-                child: Text(
-                  nickname,
-                  style:
-                  const TextStyle(
-                    color:
-                    AppColors.purple,
-                    fontWeight:
-                    FontWeight
-                        .w800,
-                  ),
-                ),
-              ),
-
-              const Icon(
-                Icons.more_horiz,
-                color:
-                AppColors.textMuted,
-              ),
-            ],
-          ),
-
-          const SizedBox(
-            height: 15,
-          ),
-
-          Text(
-            content,
-            style: const TextStyle(
-              color: AppColors.text,
-              fontSize: 15,
-              height: 1.55,
-            ),
-          ),
-
-          const SizedBox(
-            height: 17,
-          ),
-
-          Text(
-            date,
-            style: const TextStyle(
-              color:
-              AppColors.textMuted,
-              fontSize: 11,
-            ),
-          ),
-
-          const SizedBox(
-            height: 13,
-          ),
-
-          Row(
-            children: [
-              TextButton.icon(
-                onPressed: _entryBusy.contains(entry['id'].toString())
-                    ? null : () => _likeEntry(entry),
-                icon: const Icon(Icons.favorite_outline, size: 18),
-                label: Text(likes),
-              ),
-
-              const SizedBox(
-                width: 10,
-              ),
-
-              _entryAction(
-                '💬',
-                replies,
-              ),
-
-              const Spacer(),
-
-              TextButton.icon(
-                onPressed: _entryBusy.contains(entry['id'].toString())
-                    ? null : () => _reportEntry(entry),
-                icon: const Icon(Icons.flag_outlined, size: 18),
-                label: const Text('Şikâyet Et'),
-              ),
-            ],
-          ),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(color: AppColors.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.border)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Wrap(spacing: 10, runSpacing: 6, children: [
+          Text('#$number', style: const TextStyle(color: AppColors.purple,
+            fontWeight: FontWeight.w800)),
+          Text('👤 ${entry['nickname'] ?? 'Anonim'}',
+            style: const TextStyle(color: AppColors.textSoft, fontWeight: FontWeight.w700)),
+          Text('📅 ${displayDate(entry['created_at']?.toString() ?? '', includeTime: true)}',
+            style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
+        ]),
+        const SizedBox(height: 16),
+        SelectableText(entry['content']?.toString() ?? '',
+          style: const TextStyle(fontSize: 16, height: 1.65, color: AppColors.text)),
+        const SizedBox(height: 16),
+        Wrap(spacing: 10, runSpacing: 8, children: [
+          OutlinedButton(onPressed: busy ? null : () => _likeEntry(entry),
+            child: Text('❤️ ${entry['like_count'] ?? 0}')),
+          OutlinedButton(onPressed: busy ? null : () => _reportEntry(entry),
+            child: const Text('🚨 Şikâyet Et')),
+        ]),
+        if (entry['replies'] is List && (entry['replies'] as List).isNotEmpty) ...[
+          const Divider(height: 28),
+          ...(entry['replies'] as List).map((reply) => Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('↳ ${reply['nickname'] ?? 'Anonim'}',
+                style: const TextStyle(color: AppColors.purple)),
+              const SizedBox(height: 5),
+              Text(reply['content']?.toString() ?? '',
+                style: const TextStyle(height: 1.5)),
+            ]),
+          )),
         ],
-      ),
+      ]),
     );
   }
 
@@ -2484,3 +2198,5 @@ class _TopicPageState
     );
   }
 }
+
+
