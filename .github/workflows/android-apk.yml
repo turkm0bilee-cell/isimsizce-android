@@ -48,7 +48,19 @@ jobs:
       - run: flutter pub get
       - run: dart run flutter_launcher_icons
       - run: flutter analyze --no-fatal-infos --no-fatal-warnings
+      - name: Kalici imza anahtarini hazirla
+        env:
+          ISIMSIZCE_KEYSTORE_BASE64: ${{ secrets.ISIMSIZCE_KEYSTORE_BASE64 }}
+          ISIMSIZCE_KEYSTORE_PASSWORD: ${{ secrets.ISIMSIZCE_KEYSTORE_PASSWORD }}
+        run: |
+          test -n "$ISIMSIZCE_KEYSTORE_BASE64" || { echo "Signing key secret is missing"; exit 1; }
+          test -n "$ISIMSIZCE_KEYSTORE_PASSWORD" || { echo "Signing password secret is missing"; exit 1; }
+          printf '%s' "$ISIMSIZCE_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/isimsizce-release.p12"
+          chmod 600 "$RUNNER_TEMP/isimsizce-release.p12"
+          echo "ISIMSIZCE_KEYSTORE_PATH=$RUNNER_TEMP/isimsizce-release.p12" >> "$GITHUB_ENV"
       - run: flutter build apk --release
+        env:
+          ISIMSIZCE_KEYSTORE_PASSWORD: ${{ secrets.ISIMSIZCE_KEYSTORE_PASSWORD }}
       - run: cp build/app/outputs/flutter-apk/app-release.apk Isimsizce-v1.2.2.apk
       - uses: actions/upload-artifact@v4
         with:
