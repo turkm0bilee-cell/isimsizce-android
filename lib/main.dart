@@ -30,7 +30,7 @@ class SitePage extends StatefulWidget {
 }
 
 class _SitePageState extends State<SitePage> {
-  static final home = Uri.parse('https://isimsizce.nurullahyrmz.com/index.php');
+  static final home = Uri.parse('https://isimsizce.net/index.php');
   late final WebViewController controller;
   int progress = 0;
   bool failed = false;
