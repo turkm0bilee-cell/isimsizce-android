@@ -141,6 +141,23 @@ const mobileAdjustments = r'''(() => {
       }
     } catch (_) { /* Ignore malformed links. */ }
   });
+  const menu = document.querySelector('nav[aria-label="Ana menü"]');
+  if (menu && !menu.querySelector('#isimsizce-blog-link')) {
+    const topicLink = Array.from(menu.querySelectorAll('a[href]')).find(link => {
+      try {
+        const target = new URL(link.getAttribute('href'), location.href);
+        return target.origin === location.origin && target.pathname === '/new-topic.php';
+      } catch (_) { return false; }
+    });
+    if (topicLink) {
+      const blogLink = document.createElement('a');
+      blogLink.id = 'isimsizce-blog-link';
+      blogLink.href = 'https://nurullahyrmz.com/';
+      blogLink.textContent = '📝 Blog’a Git';
+      blogLink.rel = 'external noopener noreferrer';
+      topicLink.after(blogLink);
+    }
+  }
   const dialog = document.getElementById('isimsizce-about-dialog');
   if (dialog) {
     dialog.querySelector('.isimsizce-about-test')?.remove();
