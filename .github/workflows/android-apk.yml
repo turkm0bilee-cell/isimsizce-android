@@ -61,11 +61,11 @@ jobs:
       - run: flutter build apk --release
         env:
           ISIMSIZCE_KEYSTORE_PASSWORD: ${{ secrets.ISIMSIZCE_KEYSTORE_PASSWORD }}
-      - run: cp build/app/outputs/flutter-apk/app-release.apk Isimsizce-v1.2.2.apk
+      - run: cp build/app/outputs/flutter-apk/app-release.apk Isimsizce-v1.2.3.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: Isimsizce-v1.2.2
+          name: Isimsizce-v1.2.3
           path: |
-            Isimsizce-v1.2.2.apk
+            Isimsizce-v1.2.3.apk
             assets/app_icon.png
           if-no-files-found: error
