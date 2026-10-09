@@ -35,6 +35,7 @@ class _SitePageState extends State<SitePage> {
   int progress = 0;
   bool failed = false;
   bool goingBack = false;
+  bool refreshing = false;
 
   @override
   void initState() {
@@ -42,18 +43,28 @@ class _SitePageState extends State<SitePage> {
     controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(const Color(0xFF141625))
+      ..addJavaScriptChannel('IsimsizceRefresh', onMessageReceived: (message) async {
+        if (message.message != 'refresh' || refreshing || progress < 100) return;
+        final current = Uri.tryParse(await controller.currentUrl() ?? '');
+        if (!mounted || current?.scheme != 'https' || current?.host != home.host) return;
+        refreshing = true;
+        try { await controller.reload(); }
+        catch (_) { refreshing = false; }
+      })
       ..setNavigationDelegate(NavigationDelegate(
         onProgress: (value) { if (mounted) setState(() => progress = value); },
         onPageStarted: (_) {
           if (mounted) setState(() { failed = false; progress = 0; });
         },
         onPageFinished: (_) async {
-          try { await controller.runJavaScript(mobileAdjustments); }
+          try { await controller.runJavaScript(mobileAdjustments); await controller.runJavaScript(pullRefresh); }
           catch (_) { /* The website remains usable if its markup changes. */ }
+          refreshing = false;
           if (mounted) setState(() => progress = 100);
         },
         onWebResourceError: (error) {
           if (error.isForMainFrame == true && mounted) {
+            refreshing = false;
             setState(() { failed = true; progress = 100; });
           }
         },
@@ -181,4 +192,63 @@ const mobileAdjustments = r'''(() => {
     render();
   }
 })();
+''';
+const pullRefresh = r'''
+// Installed once per document after the WebView finishes loading.
+(() => {
+  if (window.__isimsizcePullRefresh) return;
+  window.__isimsizcePullRefresh = true;
+  const threshold = 100;
+  let start = null;
+  let distance = 0;
+  let loading = false;
+  const indicator = document.createElement('div');
+  indicator.setAttribute('role', 'status');
+  indicator.style.cssText = 'position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:2147483647;padding:10px 16px;border-radius:24px;background:#22263a;color:#f7f5ff;box-shadow:0 2px 12px #0006;font:14px sans-serif;pointer-events:none;display:none';
+  document.body.appendChild(indicator);
+  const reset = () => {
+    start = null;
+    distance = 0;
+    if (!loading) indicator.style.display = 'none';
+  };
+  const atTop = () => (document.scrollingElement?.scrollTop ?? window.scrollY) <= 1;
+  document.addEventListener('touchstart', event => {
+    reset();
+    if (loading || event.touches.length !== 1 || !atTop() ||
+        document.querySelector('dialog[open]') ||
+        event.target.closest('input,textarea,select,button,[contenteditable]:not([contenteditable="false"])') ||
+        document.activeElement?.matches('input,textarea,[contenteditable]:not([contenteditable="false"])')) return;
+    // Let nested scrollable areas handle their own gestures.
+    for (let node = event.target; node && node !== document.body && node !== document.documentElement; node = node.parentElement) {
+      if (node.scrollHeight > node.clientHeight + 1 && /auto|scroll/.test(getComputedStyle(node).overflowY)) return;
+    }
+    const touch = event.touches[0];
+    start = {x: touch.clientX, y: touch.clientY};
+  }, {passive: true});
+  document.addEventListener('touchmove', event => {
+    if (!start) return;
+    if (event.touches.length !== 1 || !atTop()) { reset(); return; }
+    const touch = event.touches[0];
+    const dy = touch.clientY - start.y;
+    const dx = Math.abs(touch.clientX - start.x);
+    if (dy < -8 || (dx > 12 && dx > Math.abs(dy))) { reset(); return; }
+    distance = Math.max(0, dy);
+    if (distance < 12) { indicator.style.display = 'none'; return; }
+    if (!event.cancelable) { reset(); return; }
+    event.preventDefault();
+    indicator.style.display = 'block';
+    indicator.textContent = distance >= threshold ? '↻ Yenilemek için bırak' : '↓ Yenilemek için çek';
+  }, {passive: false});
+  document.addEventListener('touchend', () => {
+    const refresh = start && distance >= threshold && atTop() && !loading;
+    reset();
+    if (!refresh) return;
+    loading = true;
+    indicator.style.display = 'block';
+    indicator.textContent = '↻ Yenileniyor…';
+    IsimsizceRefresh.postMessage('refresh');
+  }, {passive: true});
+  document.addEventListener('touchcancel', reset, {passive: true});
+})();
+
 ''';
