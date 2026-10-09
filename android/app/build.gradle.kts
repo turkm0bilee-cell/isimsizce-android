@@ -29,11 +29,25 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        create("release") {
+            val signingStore = System.getenv("ISIMSIZCE_KEYSTORE_PATH")
+            val signingPassword = System.getenv("ISIMSIZCE_KEYSTORE_PASSWORD")
+            require(!signingStore.isNullOrBlank() && !signingPassword.isNullOrBlank()) {
+                "Release signing key is required. Configure the Isimsizce signing secrets."
+            }
+            storeFile = file(signingStore)
+            storePassword = signingPassword
+            keyAlias = "isimsizce"
+            keyPassword = signingPassword
+            storeType = "PKCS12"
+        }
+    }
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // Use the persistent key supplied by GitHub Actions Secrets.
+
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 }
