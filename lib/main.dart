@@ -233,9 +233,10 @@ const pullRefresh = r'''
     const dx = Math.abs(touch.clientX - start.x);
     if (dy < -8 || (dx > 12 && dx > Math.abs(dy))) { reset(); return; }
     distance = Math.max(0, dy);
-    if (distance < 12) { indicator.style.display = 'none'; return; }
+    if (distance === 0) return;
     if (!event.cancelable) { reset(); return; }
     event.preventDefault();
+    if (distance < 12) { indicator.style.display = 'none'; return; }
     indicator.style.display = 'block';
     indicator.textContent = distance >= threshold ? '↻ Yenilemek için bırak' : '↓ Yenilemek için çek';
   }, {passive: false});
